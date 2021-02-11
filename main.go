@@ -21,7 +21,7 @@ var (
 
 func main() {
 	flag.Parse()
-	if user == nil || apiKey == nil {
+	if *user == "" || *apiKey == "" {
 		fmt.Println("User and API key are required")
 		os.Exit(1)
 	}
@@ -54,7 +54,7 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]string{"work": result.Work})
 		} else if done {
 			return
-		} else if fallbackURL != nil {
+		} else if *fallbackURL != "" {
 			resp, err := http.Post(*fallbackURL, "application/json", bytes.NewReader(body))
 			if err != nil {
 				writeError(err)
