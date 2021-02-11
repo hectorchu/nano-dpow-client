@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -50,8 +51,8 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]string{"message": "Action is not supported"})
 			return
 		}
-		if result, done, err := process(r.Context(), c, v.Hash, v.Difficulty); err == nil {
-			json.NewEncoder(w).Encode(map[string]string{"work": result.Work})
+		if work, done, err := process(r.Context(), c, v.Hash, v.Difficulty); err == nil {
+			json.NewEncoder(w).Encode(map[string]string{"work": work})
 		} else if done {
 			return
 		} else if *fallbackURL != "" {
@@ -73,22 +74,18 @@ func main() {
 	}
 }
 
-func process(ctx context.Context, c *client, hash, difficulty string) (result *response, done bool, err error) {
-	ch := make(chan interface{}, 1)
+func process(ctx context.Context, c *client, hash, difficulty string) (work string, done bool, err error) {
+	ch := make(chan *response, 1)
 	if err = c.request(hash, difficulty, ch); err != nil {
 		return
 	}
 	select {
 	case v := <-ch:
-		switch v := v.(type) {
-		case *response:
-			return v, false, nil
-		case error:
-			return nil, false, v
-		default:
-			panic("unexpected type")
+		if v.Error != "" {
+			return "", false, errors.New(v.Error)
 		}
+		return v.Work, false, nil
 	case <-ctx.Done():
-		return nil, true, ctx.Err()
+		return "", true, ctx.Err()
 	}
 }

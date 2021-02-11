@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 type client struct {
 	m      sync.Mutex
 	conn   *websocket.Conn
-	ch     map[uint]chan<- interface{}
+	ch     map[uint]chan<- *response
 	nextID uint
 }
 
@@ -21,7 +20,7 @@ type response struct {
 }
 
 func newClient() *client {
-	return &client{ch: make(map[uint]chan<- interface{})}
+	return &client{ch: make(map[uint]chan<- *response)}
 }
 
 func (c *client) connect() (err error) {
@@ -32,7 +31,7 @@ func (c *client) connect() (err error) {
 	return
 }
 
-func (c *client) request(hash, difficulty string, ch chan<- interface{}) (err error) {
+func (c *client) request(hash, difficulty string, ch chan<- *response) (err error) {
 	c.m.Lock()
 	defer c.m.Unlock()
 	c.nextID++
@@ -52,14 +51,12 @@ func (c *client) request(hash, difficulty string, ch chan<- interface{}) (err er
 func (c *client) readLoop() {
 	for {
 		var v response
-		if err := c.conn.ReadJSON(&v); err != nil || v.Error != "" {
-			if err == nil {
-				err = errors.New(v.Error)
-			}
+		if err := c.conn.ReadJSON(&v); err != nil {
+			v.Error = err.Error()
 			c.m.Lock()
 			defer c.m.Unlock()
 			for id, ch := range c.ch {
-				ch <- err
+				ch <- &v
 				delete(c.ch, id)
 			}
 			c.conn.Close()
