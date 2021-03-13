@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"os"
 )
@@ -51,6 +52,7 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]string{"message": "Action is not supported"})
 			return
 		}
+		v.Difficulty = multiplyDifficulty(v.Difficulty, 1.2)
 		if work, done, err := process(r.Context(), c, v.Hash, v.Difficulty); err == nil {
 			json.NewEncoder(w).Encode(map[string]string{"work": work})
 		} else if done {
@@ -88,4 +90,16 @@ func process(ctx context.Context, c *client, hash, difficulty string) (work stri
 	case <-ctx.Done():
 		return "", true, ctx.Err()
 	}
+}
+
+func multiplyDifficulty(difficulty string, multiplier float64) string {
+	x, ok := new(big.Int).SetString(difficulty, 16)
+	if !ok {
+		return difficulty
+	}
+	y := new(big.Rat).SetInt(new(big.Int).Exp(big.NewInt(2), big.NewInt(64), nil))
+	z := new(big.Rat).SetFloat64(multiplier)
+	z.Sub(y, z.Quo(new(big.Rat).Sub(y, new(big.Rat).SetInt(x)), z))
+	new(big.Float).SetRat(z).Int(x)
+	return x.Text(16)
 }
