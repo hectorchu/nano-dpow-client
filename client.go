@@ -24,7 +24,7 @@ func newClient() *client {
 }
 
 func (c *client) connect() (err error) {
-	if c.conn, _, err = websocket.DefaultDialer.Dial("wss://dpow-api.nanos.cc/service_ws/", nil); err != nil {
+	if c.conn, _, err = websocket.DefaultDialer.Dial("wss://dpow.nanocenter.org/service_ws/", nil); err != nil {
 		return
 	}
 	go c.readLoop()
